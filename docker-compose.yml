@@ -1,0 +1,48 @@
+# Docker Compose file for ELK stack
+
+# Build with:
+# docker-compose build elk
+
+# Run with:
+# docker-compose up
+
+version: "3"
+
+services:
+  elk:
+    build: service/elk
+    ports:
+      - "5601:5601"
+      - "9200:9200"
+      - "5044:5044"
+    healthcheck:
+      test: [ "CMD", "curl",  "--fail" , "http://elk:9200/_cluster/health?wait_for_status=green&timeout=1s",
+              "||", "exit", "1" ]
+      interval: 5s
+      timeout: 3s
+    networks:
+      - fscrawler_net
+
+#   FSCrawler
+  fscrawler:
+    image: dadoonet/fscrawler:noocr
+    container_name: fscrawler
+    restart: always
+    depends_on:
+      - elk
+    volumes:
+      - ./service/fscrawler/test_documents:/tmp/es:ro
+      - ./service/fscrawler/config:/root/.fscrawler
+      - ./logs/fscrawler:/usr/share/fscrawler/logs
+#       - ~/.fscrawler:/root/.fscrawler
+#       - ~/tmp:/tmp/es:ro
+    ports:
+      - "8080:8080"
+
+    command: fscrawler --rest document_crawl
+    networks:
+      - fscrawler_net
+
+networks:
+  fscrawler_net:
+    driver: bridge
